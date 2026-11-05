@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { RoleEnum } from './auth.js';
+import { RoleEnum } from './auth';
 
 export const ComplianceTierEnum = z.enum(['standard', 'hipaa', 'soc2', 'enterprise']);
 export type ComplianceTier = z.infer<typeof ComplianceTierEnum>;
