@@ -3,9 +3,9 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly code: string;
-  public readonly details?: any;
+  public readonly details?: unknown;
 
-  constructor(statusCode: number, code: string, message: string, details?: any) {
+  constructor(statusCode: number, code: string, message: string, details?: unknown) {
     super(message);
     this.name = 'AppError';
     this.statusCode = statusCode;
@@ -15,7 +15,7 @@ export class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  static badRequest(message = 'Bad Request', details?: any): AppError {
+  static badRequest(message = 'Bad Request', details?: unknown): AppError {
     return new AppError(400, 'BAD_REQUEST', message, details);
   }
 
@@ -35,15 +35,15 @@ export class AppError extends Error {
     return new AppError(409, 'CONFLICT', message);
   }
 
-  static unprocessable(message = 'Unprocessable Entity', details?: any): AppError {
+  static unprocessable(message = 'Unprocessable Entity', details?: unknown): AppError {
     return new AppError(422, 'VALIDATION_ERROR', message, details);
   }
 
-  static tooManyRequests(message = 'Too Many Requests', details?: any): AppError {
+  static tooManyRequests(message = 'Too Many Requests', details?: unknown): AppError {
     return new AppError(429, 'RATE_LIMIT_EXCEEDED', message, details);
   }
 
-  static internal(message = 'Internal Server Error', details?: any): AppError {
+  static internal(message = 'Internal Server Error', details?: unknown): AppError {
     return new AppError(500, 'INTERNAL_SERVER_ERROR', message, details);
   }
 }
@@ -52,7 +52,7 @@ export type AsyncRequestHandler = (
   req: Request,
   res: Response,
   next: NextFunction
-) => Promise<any>;
+) => Promise<unknown>;
 
 /**
  * Eliminates repetitive try/catch blocks in Express controllers
@@ -62,4 +62,3 @@ export const asyncHandler = (fn: AsyncRequestHandler): RequestHandler => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
-

@@ -18,7 +18,7 @@ export const BreadcrumbSchema = z.object({
   message: z.string().max(2048).nullable().optional(),
   level: z.enum(['debug', 'info', 'warning', 'error', 'fatal']).default('info'),
   timestamp: z.union([z.string().datetime(), z.number(), z.date()]),
-  data: z.record(z.any()).nullable().optional(),
+  data: z.record(z.unknown()).nullable().optional(),
 });
 export type Breadcrumb = z.infer<typeof BreadcrumbSchema>;
 
@@ -71,7 +71,7 @@ export const IngestEventPayloadSchema = z.object({
   breadcrumbs: z.array(BreadcrumbSchema).max(100).default([]),
   user: IngestUserSchema.nullable().optional(),
   tags: z.record(z.string().max(256)).optional(),
-  extra: z.record(z.any()).optional(),
+  extra: z.record(z.unknown()).optional(),
   request: IngestRequestSchema.nullable().optional(),
   sdk: IngestSdkInfoSchema.optional(),
 });

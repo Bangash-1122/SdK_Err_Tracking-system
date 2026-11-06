@@ -50,7 +50,8 @@ export function createRateLimiter(options: RateLimiterOptions = {}): RequestHand
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Determine priority rate-limit identifier
-      const apiKey = req.headers['x-api-key'] as string;
+      const rawApiKey = req.headers['x-api-key'];
+      const apiKey = typeof rawApiKey === 'string' ? rawApiKey : Array.isArray(rawApiKey) ? rawApiKey[0] : undefined;
       const orgId = req.tenant?.orgId;
       const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
 

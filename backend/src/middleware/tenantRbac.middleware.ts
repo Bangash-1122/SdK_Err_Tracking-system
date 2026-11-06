@@ -12,6 +12,16 @@ const ROLE_HIERARCHY: Record<Role, number> = {
   Viewer: 1,
 };
 
+function getHeaderString(headerVal: string | string[] | undefined): string | null {
+  if (typeof headerVal === 'string' && headerVal.trim().length > 0) {
+    return headerVal.trim();
+  }
+  if (Array.isArray(headerVal) && headerVal[0]?.trim().length > 0) {
+    return headerVal[0].trim();
+  }
+  return null;
+}
+
 /**
  * Middleware Step 7: Tenant & RBAC Resolution
  * Resolves organization & project context, verifies membership, and attaches req.tenant
@@ -19,11 +29,11 @@ const ROLE_HIERARCHY: Record<Role, number> = {
 export async function tenantRbacMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
   try {
     const rawOrgId =
-      (req.headers['x-organization-id'] as string) ||
+      getHeaderString(req.headers['x-organization-id']) ||
       req.session?.activeOrgId ||
       null;
 
-    const rawProjectId = (req.headers['x-project-id'] as string) || null;
+    const rawProjectId = getHeaderString(req.headers['x-project-id']);
 
     if (!rawOrgId || !req.user) {
       return next();
@@ -102,4 +112,3 @@ export function requireRole(allowedRoles: Role[]) {
     );
   };
 }
-

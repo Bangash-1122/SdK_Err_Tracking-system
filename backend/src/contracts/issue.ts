@@ -45,7 +45,7 @@ export const IssueDetailDtoSchema = z.object({
   usersCount: z.number().int().nonnegative().default(0),
   version: z.number().int().nonnegative().default(1),
   assignedTo: z.string().nullable().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.unknown()).optional(),
   createdAt: z.union([z.string().datetime(), z.date()]).optional(),
   updatedAt: z.union([z.string().datetime(), z.date()]).optional(),
 });

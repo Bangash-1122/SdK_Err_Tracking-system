@@ -9,7 +9,7 @@ import { ApiErrorEnvelope } from '@/contracts/envelope';
  * Formats all errors into a safe { error, meta: { requestId } } envelope
  */
 export const errorHandlerMiddleware: ErrorRequestHandler = (
-  err: any,
+  err: unknown,
   req: Request,
   res: Response,
   _next: NextFunction
@@ -19,7 +19,7 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
   let statusCode = 500;
   let code = 'INTERNAL_SERVER_ERROR';
   let message = 'An unexpected server error occurred';
-  let details: any = undefined;
+  let details: unknown = undefined;
 
   if (err instanceof AppError) {
     statusCode = err.statusCode;
@@ -39,14 +39,17 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
     statusCode = 400;
     code = 'BAD_JSON_PAYLOAD';
     message = 'Malformed JSON body in request';
-  } else if (err?.code === '23505') {
-    // PostgreSQL Unique Constraint Violation
-    statusCode = 409;
-    code = 'DUPLICATE_ENTRY';
-    message = 'A record with this identifier already exists';
+  } else if (typeof err === 'object' && err !== null && 'code' in err) {
+    const dbErr = err as { code?: unknown };
+    if (dbErr.code === '23505') {
+      // PostgreSQL Unique Constraint Violation
+      statusCode = 409;
+      code = 'DUPLICATE_ENTRY';
+      message = 'A record with this identifier already exists';
+    }
   }
 
-  // Log error using structured Pino logger
+  // Structured logging without exposing sensitive data
   if (statusCode >= 500) {
     req.log?.error(
       {
@@ -70,15 +73,21 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
     );
   }
 
+  const isErrorInstance = err instanceof Error;
+  const devDetails =
+    env.NODE_ENV !== 'production' && statusCode >= 500
+      ? {
+          stack: isErrorInstance ? err.stack : undefined,
+          originalMessage: isErrorInstance ? err.message : String(err),
+        }
+      : undefined;
+
   const responsePayload: ApiErrorEnvelope = {
     success: false,
     error: {
       code,
       message,
-      ...(details !== undefined ? { details } : {}),
-      ...(env.NODE_ENV !== 'production' && statusCode >= 500
-        ? { details: { stack: err.stack, originalMessage: err.message } }
-        : {}),
+      ...(details !== undefined ? { details } : devDetails ? { details: devDetails } : {}),
     },
     meta: {
       requestId,
@@ -87,4 +96,3 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
 
   res.status(statusCode).json(responsePayload);
 };
-

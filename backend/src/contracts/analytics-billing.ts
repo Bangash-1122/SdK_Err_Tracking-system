@@ -81,7 +81,7 @@ export const AuditLogEntryDtoSchema = z.object({
   resourceType: z.string(),
   resourceId: z.string().nullable().optional(),
   ipAddress: z.string().nullable().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.unknown()).optional(),
   createdAt: z.union([z.string().datetime(), z.date()]),
 });
 export type AuditLogEntryDto = z.infer<typeof AuditLogEntryDtoSchema>;

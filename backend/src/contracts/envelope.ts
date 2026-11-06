@@ -42,7 +42,7 @@ export type ApiErrorDetail = z.infer<typeof ApiErrorDetailSchema>;
 export const ApiErrorBodySchema = z.object({
   code: z.string(),
   message: z.string(),
-  details: z.union([z.array(ApiErrorDetailSchema), z.record(z.any())]).optional(),
+  details: z.union([z.array(ApiErrorDetailSchema), z.record(z.unknown()), z.unknown()]).optional(),
 });
 export type ApiErrorBody = z.infer<typeof ApiErrorBodySchema>;
 
