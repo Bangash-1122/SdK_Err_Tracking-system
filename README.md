@@ -43,6 +43,8 @@ SDK-ErrorTracking/
     ├── package.json                # Backend dependencies and scripts
     ├── tsconfig.json               # Backend TypeScript configuration with @/* path alias
     └── src/
+        ├── config/                 # Fail-fast environment configuration
+        │   └── env.ts              # Zod environment validation & security constraints
         ├── contracts/              # Shared Zod validation schemas & TypeScript DTOs
         │   ├── envelope.ts         # Universal API response envelopes & pagination
         │   ├── auth.ts             # Auth DTOs, signup/login schemas, and RBAC
@@ -54,18 +56,39 @@ SDK-ErrorTracking/
         │   ├── releases-alerts.ts  # Releases, source maps, alert rules & notification webhooks
         │   ├── analytics-billing.ts# APM, health metrics, subscriptions & audit logs
         │   └── index.ts            # Central barrel export for @/contracts
-        └── db/                     # Database client, schemas, and migrations
-            ├── index.ts            # Drizzle database client & connection pool
-            ├── migrations/         # Drizzle SQL migration files
-            └── schema/             # PostgreSQL table definitions & Drizzle relations
-                ├── identity.ts     # Users, sessions, and password reset tokens
-                ├── tenancy.ts      # Organizations, members, settings, and roles
-                ├── projects.ts     # Projects, ingestion keys, and project settings
-                ├── telemetry.ts    # Releases, issues, events, and user sessions
-                ├── automation.ts   # Alert rules, integrations, and notifications
-                ├── billing.ts      # Subscriptions, usage records, and invoices
-                ├── operations.ts   # Outbox, webhook inbox, delivery, assets, audit logs
-                └── index.ts        # Schema barrel export and Drizzle relations
+        ├── db/                     # Database client, schemas, and migrations
+        │   ├── index.ts            # Drizzle database client & connection pool
+        │   ├── migrations/         # Drizzle SQL migration files
+        │   └── schema/             # PostgreSQL table definitions & Drizzle relations
+        │       ├── identity.ts     # Users, sessions, and password reset tokens
+        │       ├── tenancy.ts      # Organizations, members, settings, and roles
+        │       ├── projects.ts     # Projects, ingestion keys, and project settings
+        │       ├── telemetry.ts    # Releases, issues, events, and user sessions
+        │       ├── automation.ts   # Alert rules, integrations, and notifications
+        │       ├── billing.ts      # Subscriptions, usage records, and invoices
+        │       ├── operations.ts   # Outbox, webhook inbox, delivery, assets, audit logs
+        │       └── index.ts        # Schema barrel export and Drizzle relations
+        ├── infra/                  # Core infrastructure services & backing providers
+        │   ├── db.ts               # Typed pg.Pool and Drizzle instance
+        │   ├── redis.ts            # Shared Redis client, BullMQ factory & cacheWrap
+        │   ├── crypto.ts           # Argon2id, SHA-256, hex entropy, and AES-256-GCM
+        │   ├── queues.ts           # Priority-isolated BullMQ message queues
+        │   ├── objectStorage.ts    # S3/MinIO presigned upload/download generator
+        │   └── mailer.ts           # Transactional email sender
+        ├── middleware/             # 12-Step security, validation & telemetry pipeline
+        │   ├── errors.ts           # AppError class and asyncHandler wrapper
+        │   ├── requestId.middleware.ts     # Step 1: Request UUID injection
+        │   ├── security.middleware.ts      # Step 2: Helmet headers & strict CORS
+        │   ├── logger.middleware.ts        # Step 3: Pino logging with secret redaction
+        │   ├── session.middleware.ts       # Steps 5 & 6: HttpOnly sessions & CSRF
+        │   ├── tenantRbac.middleware.ts    # Step 7: Tenant scoping & RBAC role guards
+        │   ├── rateLimiter.middleware.ts   # Step 8: Atomic Redis token-bucket limiter
+        │   ├── validate.middleware.ts      # Step 9: Zod validation (422 response)
+        │   ├── notFound.middleware.ts      # Step 11: 404 handler
+        │   ├── errorHandler.middleware.ts  # Step 12: Envelope formatted error handler
+        │   └── index.ts            # Middleware barrel export
+        └── types/                  # Global Express declaration merging
+            └── express.d.ts        # Type augmentations (req.id, req.user, req.tenant)
 ```
 
 ---
@@ -210,9 +233,75 @@ Built all PostgreSQL tables and Drizzle ORM schemas inside `backend/src/db/schem
 
 ---
 
+### ✅ Stage 4: Core Infrastructure & 12-Step Middleware (Files 24 – 37)
+
+Implemented core backing services (Database, Redis, Cryptography, Task Queues, S3 Object Storage, Mailer) and the 12-step Express middleware validation and security pipeline:
+
+1. **`config/env.ts` (File 24)**
+   - Fail-fast Zod validation of `process.env` executing on startup.
+   - Terminates process immediately if critical secrets (`DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `ENCRYPTION_KEY_HEX`) are missing, invalid, or insufficiently strong.
+
+2. **`infra/db.ts` (File 25)**
+   - Initializes `pg.Pool` with connection/idle timeouts (max 20 clients, 30s idle timeout, 5s connection timeout).
+   - Exports the typed Drizzle ORM `db` client bound to local `@/db/schema`.
+
+3. **`infra/redis.ts` (File 26)**
+   - Initializes shared `ioredis` client and dedicated BullMQ connection factory.
+   - Provides tenant-prefixed cache-aside helper `cacheWrap` featuring distributed stampede locks and TTL jitter (preventing dog-piling and simultaneous expiration).
+   - Non-blocking Redis `SCAN` tag invalidation (`invalidateByTag` and `invalidateByPrefix`).
+
+4. **`infra/crypto.ts` (File 27)**
+   - Implements **Argon2id** password hashing (`hashPassword`, `verifyPassword`).
+   - High-throughput **SHA-256** hashing for API tokens and session IDs (`hashSha256`).
+   - Cryptographically secure 64-character hexadecimal entropy generator (`generateRandomHex64`).
+   - Authenticated **AES-256-GCM** encryption and decryption (`encryptCredential`, `decryptCredential`) for sensitive third-party integration credentials.
+
+5. **`infra/queues.ts` (File 28)**
+   - Priority-isolated BullMQ queues with exponential backoff retry strategies (attempts: 5, exponential delay starting at 1000ms):
+     - `q-outbox-relay` (asynchronous event dispatch)
+     - `q-alerts` (critical alert threshold evaluations)
+     - `q-webhooks` (outbound third-party webhook dispatch)
+     - `q-email` (transactional email deliveries)
+     - `q-analytics-rollup` (APM and timeseries rollups)
+     - `q-retention` (telemetry pruning and TTL enforcement).
+
+6. **`infra/objectStorage.ts` & `infra/mailer.ts` (File 29)**
+   - `objectStorage.ts`: AWS S3 & MinIO-compatible client providing presigned upload/download URLs (`generatePresignedUploadUrl`, `generatePresignedDownloadUrl`, `deleteObject`).
+   - `mailer.ts`: Transactional email dispatcher with dev/test logging and production transport support.
+
+7. **`middleware/errors.ts` (File 30)**
+   - Typed `AppError` class with HTTP status codes, error codes, and field details.
+   - `asyncHandler` wrapper eliminating repetitive try/catch logic across controllers.
+
+8. **`middleware/requestId.middleware.ts` (File 31 - Step 1)**
+   - Injects unique `req_<uuid>` (or captures client `X-Request-Id`) on every incoming request and binds to `req.id` and the `X-Request-Id` response header.
+
+9. **`middleware/security.middleware.ts` (File 32 - Step 2)**
+   - Helmet security headers and strict allowlisted CORS with `credentials: true` (never wildcard `*`).
+
+10. **`middleware/logger.middleware.ts` (File 33 - Step 3)**
+    - High-performance Pino JSON logger with child request binding and automatic redaction of passwords, tokens, cookies, and secret headers.
+
+11. **`middleware/session.middleware.ts` (File 34 - Steps 5 & 6)**
+    - **Step 5**: Validates HttpOnly session cookies/bearer tokens against PostgreSQL `sessions` and `users` tables, attaching `req.user` and `req.session`.
+    - **Step 6**: Verifies `X-CSRF-Token` headers on state-changing methods (`POST`, `PUT`, `PATCH`, `DELETE`) with timing-safe comparison.
+
+12. **`middleware/tenantRbac.middleware.ts` (File 35 - Step 7)**
+    - Resolves `X-Organization-Id` and `X-Project-Id`, checks membership in `org_members`, attaches `req.tenant`, and provides `requireRole([...])` role-hierarchy guard.
+
+13. **`middleware/rateLimiter.middleware.ts` (File 36 - Step 8)**
+    - Atomic Redis token-bucket rate limiter evaluated via Lua script. Keyed by API key, organization ID, or IP address, setting `Retry-After` headers on HTTP 429.
+
+14. **`middleware/validate.middleware.ts`, `notFound.middleware.ts` & `errorHandler.middleware.ts` (File 37 - Steps 9, 11 & 12)**
+    - **Step 9**: `validateRequest` parses params, query, and body against shared Zod schemas, returning HTTP 422 with structured details on failure.
+    - **Step 11**: `notFoundMiddleware` catches unmatched routes with HTTP 404.
+    - **Step 12**: `errorHandlerMiddleware` catches all exceptions and formats them into the unified `{ success: false, error: { code, message, details }, meta: { requestId } }` API envelope.
+
+---
+
 ### ⏳ Upcoming Stages
 
-- **Stage 4+**: Ingestion Engine, Processing Pipeline, Controllers, and Service Layer.
+- **Stage 5+**: Core Ingestion Engine, SDK Processing Pipeline, and API Controllers.
 
 ---
 
