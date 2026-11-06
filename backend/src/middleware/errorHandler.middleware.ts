@@ -87,3 +87,4 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
 
   res.status(statusCode).json(responsePayload);
 };
+

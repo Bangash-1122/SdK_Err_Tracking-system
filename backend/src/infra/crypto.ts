@@ -102,3 +102,4 @@ export function decryptCredential(encrypted: EncryptedPayload | string): string 
 
   return decrypted;
 }
+

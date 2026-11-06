@@ -77,3 +77,4 @@ export async function deleteObject(key: string, bucket = env.S3_BUCKET_NAME): Pr
 
   await s3Client.send(command);
 }
+

@@ -41,3 +41,4 @@ export const corsMiddleware: RequestHandler = cors({
   ],
   exposedHeaders: ['X-Request-Id', 'Retry-After'],
 });
+

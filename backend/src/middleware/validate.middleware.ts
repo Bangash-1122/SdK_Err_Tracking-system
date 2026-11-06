@@ -60,3 +60,4 @@ function formatZodError(target: string, error: ZodError): AppError {
     details
   );
 }
+

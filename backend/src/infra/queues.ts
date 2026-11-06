@@ -54,3 +54,4 @@ export const allQueues = [
 export async function closeAllQueues(): Promise<void> {
   await Promise.all(allQueues.map((q) => q.close()));
 }
+

@@ -62,3 +62,4 @@ export const asyncHandler = (fn: AsyncRequestHandler): RequestHandler => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
+

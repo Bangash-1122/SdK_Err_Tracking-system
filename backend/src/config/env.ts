@@ -57,3 +57,4 @@ export const env = validateEnv();
 export const corsOrigins: string[] = env.CORS_ORIGINS.split(',')
   .map((o) => o.trim())
   .filter(Boolean);
+

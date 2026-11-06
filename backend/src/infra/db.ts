@@ -33,3 +33,4 @@ export async function checkDatabaseConnection(): Promise<boolean> {
 export * from '@/db/schema';
 export { schema };
 export default db;
+

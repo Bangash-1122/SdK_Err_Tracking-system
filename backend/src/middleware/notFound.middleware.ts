@@ -14,3 +14,4 @@ export function notFoundMiddleware(req: Request, _res: Response, next: NextFunct
     )
   );
 }
+
