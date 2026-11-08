@@ -297,11 +297,42 @@ Implemented core backing services (Database, Redis, Cryptography, Task Queues, S
     - **Step 11**: `notFoundMiddleware` catches unmatched routes with HTTP 404.
     - **Step 12**: `errorHandlerMiddleware` catches all exceptions and formats them into the unified `{ success: false, error: { code, message, details }, meta: { requestId } }` API envelope.
 
+### ✅ Stage 5: Domain Modules 01 to 05 (Files 38 – 60)
+
+Implemented domain modules adhering strictly to the architecture pattern (**Repository -> Service -> Controller -> Routes**), with complete TypeScript typing and 0 `any` references:
+
+1. **Module 01: Health & Diagnostics (Files 38 – 40)**
+   - `modules/health/health.service.ts`: Diagnostic checks with 2000ms timeouts against PostgreSQL pool (`SELECT 1`) and Redis client (`PING`), evaluating memory and process uptime.
+   - `modules/health/health.controller.ts`: Envelopes responses for live checks, readiness probes, full system status, and cache diagnostics.
+   - `modules/health/health.routes.ts`: Exposes `/api/v1/health/live`, `/api/v1/health/ready`, `/api/v1/health/status`, and Admin-only `/api/v1/health/cache-diagnostics`.
+
+2. **Module 02: Audit Trail (Files 41 – 44)**
+   - `modules/audit/audit.repo.ts`: Immutable security audit log repository querying `audit_logs` with cursor pagination.
+   - `modules/audit/audit.service.ts`: Non-blocking, fault-tolerant `auditService.record(...)` method ensuring primary flows never crash due to audit persistence failures.
+   - `modules/audit/audit.controller.ts` & `audit.routes.ts`: Exposes `GET /api/v1/audit` protected by `requireAuth` and `requireRole(['Owner', 'Administrator'])`.
+
+3. **Module 03: Authentication (Files 45 – 48)**
+   - `modules/auth/auth.repo.ts`: Atomic `createSignupTransaction` (creates User, initial Organization, assigns Owner role, creates Settings and Subscription in a single transaction).
+   - `modules/auth/auth.service.ts`: Implements `/signup`, `/login` with Argon2id password verification, `/logout` with session revocation, `/me`, `/forgot-password` with 1-hour reset token and email dispatch, and `/reset-password`.
+   - `modules/auth/auth.controller.ts`: Issues secure `ep_session` HttpOnly cookies and `X-CSRF-Token` headers.
+   - `modules/auth/auth.routes.ts`: Rate-limited authentication router (10 attempts/min) with Zod validation.
+
+4. **Module 04: Organizations & Members (Files 49 – 56)**
+   - `modules/organizations/`: Manages organization profile and Section F security settings (compliance tier, MFA enforcement, IP allowlisting).
+   - `modules/members/`: Manages team member invitations via email, role promotions/demotions, and member removal with **last-Owner protection** preventing orphaned organizations.
+
+5. **Module 05: Projects, Keys & Settings (Files 57 – 60)**
+   - `modules/projects/`: Full project lifecycle management.
+   - **Ingestion Key Generation**: Secure 64-character hex ingestion keys hashed using SHA-256 with masked prefixes (`ep_...`).
+   - **Zero-Downtime Key Rotation**: Seamless active key rotation preserving uninterrupted client ingestion.
+   - **Cascading Deletion**: Clean cascading database deletion across all project resources.
+   - **Project Settings Sections A-E, G, H, J**: Persistent settings for default environment, timezone, error sample rate, ignored errors, sensitive data scrubbing fields, retention days, auto-resolve intervals, and performance/regression monitoring with optimistic concurrency locking (`version`).
+
 ---
 
 ### ⏳ Upcoming Stages
 
-- **Stage 5+**: Core Ingestion Engine, SDK Processing Pipeline, and API Controllers.
+- **Stage 5 Continued**: Module 06 (Files 61 – 65) - Issues, Events, or Core Ingestion.
 
 ---
 
