@@ -143,3 +143,4 @@ export function computeFingerprint(payload: IngestEventPayload): string {
   const rawSignature = `${exceptionType}|${frameSignatures.join('|')}`;
   return hashSha256(rawSignature);
 }
+
