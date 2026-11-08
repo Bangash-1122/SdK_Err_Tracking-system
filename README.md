@@ -335,11 +335,30 @@ Implemented domain modules adhering strictly to the architecture pattern (**Repo
    - `modules/ingestion/ingest.controller.ts`: SDK key extraction from headers (`X-Api-Key`, `Authorization`, `X-Sentry-Auth`) or query params, response enveloper.
    - `modules/ingestion/ingest.routes.ts`: Exposes high-capacity rate-limited `POST /api/v1/events` and public `GET /api/v1/sdk-health`.
 
+7. **Module 07: Issues & Triage (Files 66 – 69)**
+   - `modules/issues/`: Implements cursor-paginated issue listing with search, PostgreSQL GIN full-text/tag search (`GET /api/v1/search`), deep issue detail with stack traces & breadcrumbs (`GET /api/v1/issues/:id`), and single/bulk status triage with optimistic concurrency control (`PATCH /api/v1/issues/:id`).
+
+8. **Module 08: Analytics, APM & Sessions (Files 70 – 73)**
+   - `modules/analytics/`: Implements Redis-cached (`cacheWrap`) dashboard KPIs & crash histograms (`GET /api/v1/analytics/stats`), APM latency percentiles (`GET /api/v1/performance`), and crash-free session rates (`GET /api/v1/sessions`).
+
+9. **Module 09: Releases & Exports (Files 74 – 77)**
+   - `modules/releases/`: Release tracking and S3 presigned source-map upload URLs (`POST /api/v1/releases/sourcemaps/presign`).
+   - `modules/exports/`: Asynchronous JSON/CSV telemetry export jobs with presigned S3 download URLs (`POST /api/v1/exports`).
+
+10. **Module 10: Alerts, Integrations & Notifications (Files 78 – 81)**
+    - `modules/alerts/`: Alert rule CRUD with custom metric threshold and window conditions.
+    - `modules/integrations/`: AES-256-GCM encrypted integration configurations (Slack, GitHub, Webhooks, Email) with masked credentials and live test delivery triggers.
+    - `modules/notifications/`: Notification center querying and per-user read state tracking.
+
+11. **Module 11: Billing & Realtime SSE (Files 82 – 85)**
+    - `modules/billing/`: Server-calculated quota usage, checkout sessions, invoice downloads, and raw-body signature-verified payment webhooks into `webhook_inbox`.
+    - `modules/realtime/`: Tenant-scoped Server-Sent Events (SSE) real-time issue streaming (`GET /api/v1/realtime/issues`) with heartbeat keep-alive.
+
 ---
 
 ### ⏳ Upcoming Stages
 
-- **Stage 6**: Background Workers, Outbox Relays, and Issue Triage/APM Processing.
+- **Stage 6: Workers & Entry Points (Files 86 – 93)**: Background workers, outbox processors, schedulers, and runnable process entry points (`server.ts`, `worker.ts`).
 
 ---
 
