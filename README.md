@@ -32,63 +32,164 @@ Path alias `@/*` is configured to map directly to `./src/*`, allowing clean impo
 
 ```text
 SDK-ErrorTracking/
-├── .gitignore                      # Git ignore rules protecting secrets and build outputs
-├── pnpm-workspace.yaml             # Workspace configuration
-├── tsconfig.base.json              # Shared strict TypeScript base config
-├── README.md                       # Project execution roadmap & stage documentation
+├── .gitignore                          # Git ignore rules protecting secrets (.env) and build outputs
+├── pnpm-workspace.yaml                 # PNPM monorepo/workspace definition
+├── tsconfig.base.json                  # Shared strict TypeScript base configuration
+├── README.md                           # Master architectural guide & stage implementation log
 └── backend/
-    ├── .env                        # Local environment variables (DO NOT COMMIT)
-    ├── .env.example                # Sanitized template for environment variables
-    ├── drizzle.config.ts           # Drizzle Kit migration & schema configuration
-    ├── package.json                # Backend dependencies and scripts
-    ├── tsconfig.json               # Backend TypeScript configuration with @/* path alias
+    ├── .env                            # Local environment variables (STRICTLY GIT-IGNORED)
+    ├── .env.example                    # Sanitized template for local/production environment variables
+    ├── drizzle.config.ts               # Drizzle Kit migration, schema & dialect configuration
+    ├── package.json                    # Backend dependencies, operational scripts, and metadata
+    ├── tsconfig.json                   # Backend TypeScript config with strict checks & @/* path alias
     └── src/
-        ├── config/                 # Fail-fast environment configuration
-        │   └── env.ts              # Zod environment validation & security constraints
-        ├── contracts/              # Shared Zod validation schemas & TypeScript DTOs
-        │   ├── envelope.ts         # Universal API response envelopes & pagination
-        │   ├── auth.ts             # Auth DTOs, signup/login schemas, and RBAC
-        │   ├── organization.ts     # Org management, compliance, and membership
-        │   ├── project.ts          # Project lifecycle & ingestion key rotation
-        │   ├── settings.ts         # Project telemetry, scrubbing, and alert settings
-        │   ├── event.ts            # SDK telemetry ingestion, frames, and breadcrumbs
-        │   ├── issue.ts            # Issue status, severity, optimistic concurrency, and triage
-        │   ├── releases-alerts.ts  # Releases, source maps, alert rules & notification webhooks
-        │   ├── analytics-billing.ts# APM, health metrics, subscriptions & audit logs
-        │   └── index.ts            # Central barrel export for @/contracts
-        ├── db/                     # Database client, schemas, and migrations
-        │   ├── index.ts            # Drizzle database client & connection pool
-        │   ├── migrations/         # Drizzle SQL migration files
-        │   └── schema/             # PostgreSQL table definitions & Drizzle relations
-        │       ├── identity.ts     # Users, sessions, and password reset tokens
-        │       ├── tenancy.ts      # Organizations, members, settings, and roles
-        │       ├── projects.ts     # Projects, ingestion keys, and project settings
-        │       ├── telemetry.ts    # Releases, issues, events, and user sessions
-        │       ├── automation.ts   # Alert rules, integrations, and notifications
-        │       ├── billing.ts      # Subscriptions, usage records, and invoices
-        │       ├── operations.ts   # Outbox, webhook inbox, delivery, assets, audit logs
-        │       └── index.ts        # Schema barrel export and Drizzle relations
-        ├── infra/                  # Core infrastructure services & backing providers
-        │   ├── db.ts               # Typed pg.Pool and Drizzle instance
-        │   ├── redis.ts            # Shared Redis client, BullMQ factory & cacheWrap
-        │   ├── crypto.ts           # Argon2id, SHA-256, hex entropy, and AES-256-GCM
-        │   ├── queues.ts           # Priority-isolated BullMQ message queues
-        │   ├── objectStorage.ts    # S3/MinIO presigned upload/download generator
-        │   └── mailer.ts           # Transactional email sender
-        ├── middleware/             # 12-Step security, validation & telemetry pipeline
-        │   ├── errors.ts           # AppError class and asyncHandler wrapper
-        │   ├── requestId.middleware.ts     # Step 1: Request UUID injection
-        │   ├── security.middleware.ts      # Step 2: Helmet headers & strict CORS
-        │   ├── logger.middleware.ts        # Step 3: Pino logging with secret redaction
-        │   ├── session.middleware.ts       # Steps 5 & 6: HttpOnly sessions & CSRF
-        │   ├── tenantRbac.middleware.ts    # Step 7: Tenant scoping & RBAC role guards
-        │   ├── rateLimiter.middleware.ts   # Step 8: Atomic Redis token-bucket limiter
-        │   ├── validate.middleware.ts      # Step 9: Zod validation (422 response)
-        │   ├── notFound.middleware.ts      # Step 11: 404 handler
-        │   ├── errorHandler.middleware.ts  # Step 12: Envelope formatted error handler
-        │   └── index.ts            # Middleware barrel export
-        └── types/                  # Global Express declaration merging
-            └── express.d.ts        # Type augmentations (req.id, req.user, req.tenant)
+        ├── config/                     # Fail-fast environment configuration
+        │   └── env.ts                  # Zod environment schema & runtime secret validation
+        │
+        ├── contracts/                  # Type-safe Zod validation schemas & shared TypeScript DTOs
+        │   ├── envelope.ts             # Universal API success/error envelopes & cursor pagination
+        │   ├── auth.ts                 # Auth credentials, user profiles, session DTOs, and RBAC roles
+        │   ├── organization.ts         # Organization settings (Section F: MFA, IP allowlist), invitations
+        │   ├── project.ts              # Project creation, platform types, and ingestion key rotation DTOs
+        │   ├── settings.ts             # Project settings (Sections A-E, G, H, J: scrubbing, retention)
+        │   ├── event.ts                # Telemetry ingestion payloads, stack traces, and breadcrumbs
+        │   ├── issue.ts                # Issue triage status, severity enum, and optimistic versioning
+        │   ├── releases-alerts.ts      # Release versions, source-map presign, alert rules & integrations
+        │   ├── analytics-billing.ts    # Dashboard KPIs, APM performance, subscriptions, invoices, and audit
+        │   └── index.ts                # Central barrel export for all contracts
+        │
+        ├── db/                         # Database connection, schemas, and migration registry
+        │   ├── index.ts                # Drizzle database client & connection pool instance
+        │   ├── migrations/             # Generated Drizzle PostgreSQL migration files
+        │   └── schema/                 # Normalized PostgreSQL tables and Drizzle relations
+        │       ├── identity.ts         # users, sessions, password_reset_tokens
+        │       ├── tenancy.ts          # organizations, org_members, org_settings
+        │       ├── projects.ts         # projects, project_keys, project_settings
+        │       ├── telemetry.ts        # releases, issues, events, user_sessions
+        │       ├── automation.ts       # alert_rules, integrations, notifications
+        │       ├── billing.ts          # subscriptions, usage_records, invoices
+        │       ├── operations.ts       # outbox, webhook_inbox, delivery_attempts, object_assets, audit_logs
+        │       └── index.ts            # Centralized schema barrel export & ORM relations
+        │
+        ├── infra/                      # Core infrastructure adapters & backing service clients
+        │   ├── db.ts                   # Pooled PostgreSQL connection instance
+        │   ├── redis.ts                # Redis client, BullMQ connection factory & stampede-locked cacheWrap
+        │   ├── crypto.ts               # Argon2id hashing, SHA-256 tokens, hex entropy & AES-256-GCM
+        │   ├── queues.ts               # Priority-isolated BullMQ message queues (outbox, alerts, email, etc.)
+        │   ├── objectStorage.ts        # S3/MinIO presigned upload/download URL generator
+        │   └── mailer.ts               # Transactional email dispatcher with dev fallback
+        │
+        ├── middleware/                 # 12-Step security, validation, tenancy & error pipeline
+        │   ├── errors.ts               # AppError class with HTTP codes and asyncHandler wrapper
+        │   ├── requestId.middleware.ts     # Step 1: Unique request UUID injection (req.id)
+        │   ├── security.middleware.ts      # Step 2: Strict Helmet headers & allowlisted CORS
+        │   ├── logger.middleware.ts        # Step 3: Structured Pino logging with automatic secret redaction
+        │   ├── session.middleware.ts       # Steps 5 & 6: HttpOnly cookie authentication, requireAuth & CSRF
+        │   ├── tenantRbac.middleware.ts    # Step 7: Multi-tenant scoping & RBAC role guards (requireRole)
+        │   ├── rateLimiter.middleware.ts   # Step 8: Atomic Redis Lua token-bucket rate limiter
+        │   ├── validate.middleware.ts      # Step 9: Zod request validation (returns 422 with field details)
+        │   ├── notFound.middleware.ts      # Step 11: 404 Route not found fallback handler
+        │   ├── errorHandler.middleware.ts  # Step 12: Unified API envelope formatted exception handler
+        │   └── index.ts                # Middleware barrel export
+        │
+        ├── modules/                    # Enterprise domain modules (Repo → Service → Controller → Routes)
+        │   ├── health/                 # Module 01: Health & Diagnostics (Files 38 – 40)
+        │   │   ├── health.service.ts   # Ping probes for DB/Redis with 2s timeouts and uptime metrics
+        │   │   ├── health.controller.ts# Response enveloper for live, readiness, and system status
+        │   │   └── health.routes.ts    # /api/v1/health/* endpoints
+        │   │
+        │   ├── audit/                  # Module 02: Audit Trail (Files 41 – 44)
+        │   │   ├── audit.repo.ts       # Cursor-paginated querying of immutable security logs
+        │   │   ├── audit.service.ts    # Fault-tolerant record() helper (never breaks business transactions)
+        │   │   ├── audit.controller.ts # Enveloped controller for audit events
+        │   │   └── audit.routes.ts     # GET /api/v1/audit with RBAC Owner/Admin enforcement
+        │   │
+        │   ├── auth/                   # Module 03: Authentication (Files 45 – 48)
+        │   │   ├── auth.repo.ts        # Atomic signup transaction (User + Org + Owner + Settings + Sub)
+        │   │   ├── auth.service.ts     # Argon2id verification, session tokens, password reset flows
+        │   │   ├── auth.controller.ts  # Cookie setter (ep_session), CSRF header injector, auth envelopes
+        │   │   └── auth.routes.ts      # Rate-limited auth router (/signup, /login, /logout, /me, etc.)
+        │   │
+        │   ├── organizations/          # Module 04A: Organization Management (Files 49 – 52)
+        │   │   ├── orgs.repo.ts        # Profile queries & Section F settings persistence
+        │   │   ├── orgs.service.ts     # Org updates, compliance tier, MFA requirement, IP allowlists
+        │   │   ├── orgs.controller.ts  # Org controller handling settings and profiles
+        │   │   └── orgs.routes.ts      # /api/v1/organizations routes with RBAC guards
+        │   │
+        │   ├── members/                # Module 04B: Team Members & RBAC (Files 53 – 56)
+        │   │   ├── members.repo.ts     # Member lists, role updates, placeholder user provisioning
+        │   │   ├── members.service.ts  # Member invitations via email and last-Owner demotion protection
+        │   │   ├── members.controller.ts# Member management endpoints
+        │   │   └── members.routes.ts   # /api/v1/organizations/:orgId/members routes
+        │   │
+        │   ├── projects/               # Module 05: Projects & Settings (Files 57 – 60)
+        │   │   ├── projects.repo.ts    # Project CRUD, SHA-256 key generation, optimistic settings updates
+        │   │   ├── projects.service.ts # Zero-downtime key rotation, cascading deletion, settings A-J
+        │   │   ├── projects.controller.ts# Project lifecycle & key rotation handlers
+        │   │   └── projects.routes.ts  # /api/v1/projects routes with optimistic concurrency checks
+        │   │
+        │   ├── ingestion/              # Module 06: SDK Event Ingestion Engine (Files 61 – 65)
+        │   │   ├── fingerprint.ts      # In-app frame normalizer, PII scrubber, SHA-256 issue fingerprint
+        │   │   ├── ingest.repo.ts      # Atomic transaction: events + issue upsert + regression + outbox
+        │   │   ├── ingest.service.ts   # API key verification, Section D ignored errors, Section C sampling
+        │   │   ├── ingest.controller.ts# Ingestion credentials extractor & envelope responder
+        │   │   └── ingest.routes.ts    # High-throughput POST /api/v1/events and GET /api/v1/sdk-health
+        │   │
+        │   ├── issues/                 # Module 07: Issues & Triage (Files 66 – 69)
+        │   │   ├── issues.repo.ts      # Composite cursor pagination, GIN search, optimistic locking
+        │   │   ├── issues.service.ts   # Deep issue details, latest event context, single & bulk triage
+        │   │   ├── issues.controller.ts# Issue listing, search, detail, and triage handlers
+        │   │   └── issues.routes.ts    # /api/v1/issues and /api/v1/search routes
+        │   │
+        │   ├── analytics/              # Module 08: Analytics, APM & Sessions (Files 70 – 73)
+        │   │   ├── analytics.repo.ts   # Crash histograms, APM percentiles (p50/p95/p99), crash-free rates
+        │   │   ├── analytics.service.ts# Redis cacheWrap cache-aside with jitter
+        │   │   ├── analytics.controller.ts# Stats, APM, and session metrics controllers
+        │   │   └── analytics.routes.ts # /api/v1/analytics/stats, /performance, /sessions routes
+        │   │
+        │   ├── releases/               # Module 09A: Releases & Sourcemaps (Files 74 – 75)
+        │   │   ├── releases.repo.ts    # Release tracking and object_assets sourcemap records
+        │   │   ├── releases.service.ts # S3/MinIO presigned upload URL generator for sourcemaps
+        │   │   ├── releases.controller.ts# Release creation & sourcemap presign handlers
+        │   │   └── releases.routes.ts  # /api/v1/releases routes
+        │   │
+        │   ├── exports/                # Module 09B: Telemetry Data Exports (Files 76 – 77)
+        │   │   ├── exports.repo.ts     # Batch event/issue querying for data export
+        │   │   ├── exports.service.ts  # JSON/CSV telemetry formatting & presigned download links
+        │   │   ├── exports.controller.ts# Export job creation handler
+        │   │   └── exports.routes.ts   # POST /api/v1/exports
+        │   │
+        │   ├── alerts/                 # Module 10A: Alert Rules (Files 78 – 79)
+        │   │   ├── alerts.repo.ts      # Alert rules database persistence
+        │   │   ├── alerts.service.ts   # Threshold, operator, metric, and window evaluation logic
+        │   │   ├── alerts.controller.ts# Alert rule CRUD controller
+        │   │   └── alerts.routes.ts    # /api/v1/alerts routes
+        │   │
+        │   ├── integrations/           # Module 10B: Third-Party Integrations (Files 80 – 81)
+        │   │   ├── integrations.repo.ts# Integration store & delivery attempts registry
+        │   │   ├── integrations.service.ts# AES-256-GCM credential encryption, masking, and test delivery
+        │   │   ├── integrations.controller.ts# Integration configuration handlers
+        │   │   └── integrations.routes.ts# /api/v1/integrations routes
+        │   │
+        │   ├── notifications/          # Module 10C: Notification Center (Files 81b)
+        │   │   ├── notifications.repo.ts# Notification history querying & mark-as-read updates
+        │   │   ├── notifications.service.ts# Notification retrieval service
+        │   │   ├── notifications.controller.ts# Notification handlers
+        │   │   └── notifications.routes.ts# /api/v1/notifications routes
+        │   │
+        │   ├── billing/                # Module 11A: Subscriptions, Quotas & Invoices (Files 82 – 84)
+        │   │   ├── billing.repo.ts     # Subscription tracking, server-calculated quota usage, invoices
+        │   │   ├── billing.service.ts  # Checkout sessions, plan upgrades, invoice downloads
+        │   │   ├── billing.webhook.ts  # Raw-body HMAC-SHA256 signature verification into webhook_inbox
+        │   │   ├── billing.controller.ts# Billing controllers
+        │   │   └── billing.routes.ts   # /api/v1/billing routes & payment webhooks
+        │   │
+        │   └── realtime/               # Module 11B: Real-time Telemetry Streaming (Files 85)
+        │       ├── realtime.controller.ts# Tenant-scoped Server-Sent Events (SSE) streaming with heartbeat
+        │       └── realtime.routes.ts  # GET /api/v1/realtime/issues
+        │
+        └── types/                      # Global TypeScript declaration merging
+            └── express.d.ts            # Type augmentations for Express (req.id, req.user, req.tenant, req.session)
 ```
 
 ---
