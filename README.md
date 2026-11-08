@@ -297,7 +297,7 @@ Implemented core backing services (Database, Redis, Cryptography, Task Queues, S
     - **Step 11**: `notFoundMiddleware` catches unmatched routes with HTTP 404.
     - **Step 12**: `errorHandlerMiddleware` catches all exceptions and formats them into the unified `{ success: false, error: { code, message, details }, meta: { requestId } }` API envelope.
 
-### ✅ Stage 5: Domain Modules 01 to 05 (Files 38 – 60)
+### ✅ Stage 5: Domain Modules 01 to 06 (Files 38 – 65)
 
 Implemented domain modules adhering strictly to the architecture pattern (**Repository -> Service -> Controller -> Routes**), with complete TypeScript typing and 0 `any` references:
 
@@ -328,11 +328,18 @@ Implemented domain modules adhering strictly to the architecture pattern (**Repo
    - **Cascading Deletion**: Clean cascading database deletion across all project resources.
    - **Project Settings Sections A-E, G, H, J**: Persistent settings for default environment, timezone, error sample rate, ignored errors, sensitive data scrubbing fields, retention days, auto-resolve intervals, and performance/regression monitoring with optimistic concurrency locking (`version`).
 
+6. **Module 06: SDK Event Ingestion Pipeline (Files 61 – 65)**
+   - `modules/ingestion/fingerprint.ts`: Normalizes in-app stack frames, computes deterministic SHA-256 issue fingerprints, and deeply scrubs PII / sensitive data fields from incoming telemetry.
+   - `modules/ingestion/ingest.repo.ts`: Atomic PostgreSQL transaction executing event insertion, issue upsert (with regression detection & status reopening), project event counter increment, and transactional outbox insertion (`event.ingested` / `issue.regression`).
+   - `modules/ingestion/ingest.service.ts`: API key authentication, Section D ignored errors filtering, Section C error sampling rate evaluation, PII scrubbing, and severity mapping.
+   - `modules/ingestion/ingest.controller.ts`: SDK key extraction from headers (`X-Api-Key`, `Authorization`, `X-Sentry-Auth`) or query params, response enveloper.
+   - `modules/ingestion/ingest.routes.ts`: Exposes high-capacity rate-limited `POST /api/v1/events` and public `GET /api/v1/sdk-health`.
+
 ---
 
 ### ⏳ Upcoming Stages
 
-- **Stage 5 Continued**: Module 06 (Files 61 – 65) - Issues, Events, or Core Ingestion.
+- **Stage 6**: Background Workers, Outbox Relays, and Issue Triage/APM Processing.
 
 ---
 
