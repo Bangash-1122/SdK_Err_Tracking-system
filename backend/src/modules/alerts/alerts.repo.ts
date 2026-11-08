@@ -59,3 +59,4 @@ export class AlertsRepository {
 }
 
 export const alertsRepository = new AlertsRepository();
+

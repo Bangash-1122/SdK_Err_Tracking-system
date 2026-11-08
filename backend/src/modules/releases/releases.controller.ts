@@ -76,3 +76,4 @@ export class ReleasesController {
 }
 
 export const releasesController = new ReleasesController();
+

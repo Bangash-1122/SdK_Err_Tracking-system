@@ -10,3 +10,4 @@ router.get('/issues', realtimeController.streamIssues);
 router.get('/', realtimeController.streamIssues);
 
 export const realtimeRoutes = router;
+

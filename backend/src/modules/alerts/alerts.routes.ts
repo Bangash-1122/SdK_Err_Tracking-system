@@ -34,3 +34,4 @@ router.delete(
 );
 
 export const alertsRoutes = router;
+
