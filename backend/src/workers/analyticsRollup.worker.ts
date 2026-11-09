@@ -84,3 +84,4 @@ export class AnalyticsRollupWorker {
 }
 
 export const analyticsRollupWorker = new AnalyticsRollupWorker();
+

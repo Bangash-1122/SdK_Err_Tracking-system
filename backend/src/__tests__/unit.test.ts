@@ -137,3 +137,4 @@ describe('Unit Tests: Cryptography & Security Primitives', () => {
     assert.equal(await validateSafeUrl('http://192.168.1.1/router'), false);
   });
 });
+

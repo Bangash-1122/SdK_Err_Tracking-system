@@ -159,3 +159,4 @@ export class AlertsEvaluationWorker {
 }
 
 export const alertsEvaluationWorker = new AlertsEvaluationWorker();
+
