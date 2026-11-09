@@ -1,0 +1,683 @@
+openapi: 3.1.0
+info:
+  title: ErrorPulse Enterprise Error Tracking & Observability API
+  version: 1.0.0
+  description: >
+    Production-grade error tracking, crash reporting, and application performance monitoring (APM)
+    REST and telemetry ingestion API.
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local Development Server
+
+paths:
+  /health/live:
+    get:
+      summary: Liveness probe
+      tags: [Health]
+      responses:
+        '200':
+          description: Service is alive
+  /health/ready:
+    get:
+      summary: Readiness probe
+      tags: [Health]
+      responses:
+        '200':
+          description: PostgreSQL and Redis connections healthy
+        '503':
+          description: Database or cache dependency unavailable
+  /health/status:
+    get:
+      summary: Comprehensive system diagnostics
+      tags: [Health]
+      responses:
+        '200':
+          description: System resource and dependency metrics
+
+  /auth/signup:
+    post:
+      summary: User registration and organization provisioning
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupBody'
+      responses:
+        '201':
+          description: Created
+  /auth/login:
+    post:
+      summary: User login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+      responses:
+        '200':
+          description: Login successful
+  /auth/logout:
+    post:
+      summary: Invalidate user session
+      tags: [Auth]
+      responses:
+        '200':
+          description: Session revoked
+  /auth/me:
+    get:
+      summary: Get active user profile
+      tags: [Auth]
+      responses:
+        '200':
+          description: Authenticated user details
+
+  /organizations/{orgId}:
+    get:
+      summary: Get organization details
+      tags: [Organizations]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organization record
+    patch:
+      summary: Update organization
+      tags: [Organizations]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated
+
+  /organizations/{orgId}/settings:
+    get:
+      summary: Get organization compliance settings
+      tags: [Organizations]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Org Settings
+    patch:
+      summary: Update Section F compliance settings
+      tags: [Organizations]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated
+
+  /organizations/{orgId}/members:
+    get:
+      summary: List team members
+      tags: [Members]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Members list
+    post:
+      summary: Invite member
+      tags: [Members]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Member invited
+
+  /organizations/{orgId}/members/{memberId}/role:
+    patch:
+      summary: Update member role
+      tags: [Members]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role updated
+
+  /organizations/{orgId}/members/{memberId}:
+    delete:
+      summary: Remove member (with last-Owner protection)
+      tags: [Members]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Member removed
+
+  /projects:
+    get:
+      summary: List projects
+      tags: [Projects]
+      responses:
+        '200':
+          description: Projects list
+    post:
+      summary: Create project
+      tags: [Projects]
+      responses:
+        '201':
+          description: Project created with initial API key
+
+  /projects/{projectId}:
+    get:
+      summary: Get project details
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project details
+    delete:
+      summary: Cascading project deletion
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project deleted
+
+  /projects/{projectId}/keys/rotate:
+    post:
+      summary: Zero-downtime ingestion key rotation
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: New key issued
+
+  /projects/{projectId}/settings:
+    get:
+      summary: Get project telemetry and scrubbing settings
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Settings
+    patch:
+      summary: Update Sections A-E, G, H, J settings with optimistic concurrency
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated
+
+  /events:
+    post:
+      summary: Ingest client SDK error or telemetry event
+      tags: [Ingestion]
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestEventPayload'
+      responses:
+        '202':
+          description: Event accepted for ingestion
+        '200':
+          description: Event processed (ignored/sampled)
+
+  /sdk-health:
+    get:
+      summary: Ingestion availability check
+      tags: [Ingestion]
+      responses:
+        '200':
+          description: Online
+
+  /issues:
+    get:
+      summary: List issues with cursor pagination
+      tags: [Issues]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [unresolved, resolved, ignored]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low, info]
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated issue list
+
+  /search:
+    get:
+      summary: Full-text and tag issue search
+      tags: [Issues]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results
+
+  /issues/{id}:
+    get:
+      summary: Deep issue detail with stack traces and breadcrumbs
+      tags: [Issues]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Issue detail
+    patch:
+      summary: Triage issue status with optimistic version check
+      tags: [Issues]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated
+
+  /issues/bulk-triage:
+    post:
+      summary: Bulk triage issues
+      tags: [Issues]
+      responses:
+        '200':
+          description: Bulk updated
+
+  /analytics/stats:
+    get:
+      summary: Dashboard KPIs and crash histogram timeseries
+      tags: [Analytics]
+      responses:
+        '200':
+          description: Stats
+  /performance:
+    get:
+      summary: APM transaction latency percentiles (p50, p95, p99)
+      tags: [Analytics]
+      responses:
+        '200':
+          description: APM stats
+  /sessions:
+    get:
+      summary: Crash-free session and user rates
+      tags: [Analytics]
+      responses:
+        '200':
+          description: Session health
+
+  /releases:
+    get:
+      summary: List releases
+      tags: [Releases]
+      responses:
+        '200':
+          description: Releases list
+    post:
+      summary: Register new release
+      tags: [Releases]
+      responses:
+        '201':
+          description: Release created
+
+  /releases/sourcemaps/presign:
+    post:
+      summary: Generate presigned S3 upload URL for JavaScript sourcemap
+      tags: [Releases]
+      responses:
+        '200':
+          description: Presigned URL
+
+  /exports:
+    post:
+      summary: Trigger asynchronous JSON/CSV telemetry data export
+      tags: [Exports]
+      responses:
+        '202':
+          description: Export enqueued
+
+  /alerts:
+    get:
+      summary: List alert rules
+      tags: [Alerts]
+      responses:
+        '200':
+          description: Rules
+    post:
+      summary: Create alert rule
+      tags: [Alerts]
+      responses:
+        '201':
+          description: Created
+  /alerts/{id}:
+    get:
+      summary: Get alert rule
+      tags: [Alerts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rule
+    patch:
+      summary: Update alert rule
+      tags: [Alerts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete alert rule
+      tags: [Alerts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+
+  /integrations:
+    get:
+      summary: List third-party integrations (credentials masked)
+      tags: [Integrations]
+      responses:
+        '200':
+          description: Integrations
+    post:
+      summary: Create integration with AES-256-GCM encrypted configuration
+      tags: [Integrations]
+      responses:
+        '201':
+          description: Created
+  /integrations/{id}/test:
+    post:
+      summary: Dispatch test delivery
+      tags: [Integrations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test delivered
+  /integrations/{id}:
+    delete:
+      summary: Delete integration
+      tags: [Integrations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+
+  /notifications:
+    get:
+      summary: List notification center entries
+      tags: [Notifications]
+      responses:
+        '200':
+          description: Notifications
+  /notifications/{id}/read:
+    patch:
+      summary: Mark notification as read
+      tags: [Notifications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Marked
+
+  /billing/subscription:
+    get:
+      summary: Get active subscription and quota consumption
+      tags: [Billing]
+      responses:
+        '200':
+          description: Subscription details
+  /billing/checkout:
+    post:
+      summary: Create checkout session
+      tags: [Billing]
+      responses:
+        '201':
+          description: Checkout URL
+  /billing/invoices:
+    get:
+      summary: List billing invoices
+      tags: [Billing]
+      responses:
+        '200':
+          description: Invoices
+  /billing/invoices/{id}/download:
+    get:
+      summary: Get signed download URL for invoice PDF
+      tags: [Billing]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Download URL
+  /billing/webhook:
+    post:
+      summary: Inbound payment provider raw webhook receiver
+      tags: [Billing]
+      responses:
+        '200':
+          description: Webhook received
+
+  /realtime/issues:
+    get:
+      summary: Tenant-scoped Server-Sent Events (SSE) live issue stream
+      tags: [Realtime]
+      responses:
+        '200':
+          description: Event stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: ep_session
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+    csrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+
+  schemas:
+    SignupBody:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+        organizationName:
+          type: string
+    LoginBody:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    IngestEventPayload:
+      type: object
+      properties:
+        eventId:
+          type: string
+        level:
+          type: string
+          enum: [fatal, error, warning, info, debug]
+        environment:
+          type: string
+        release:
+          type: string
+        message:
+          type: string
+        exception:
+          type: object
+          properties:
+            type:
+              type: string
+            value:
+              type: string
+            stacktrace:
+              type: object
+              properties:
+                frames:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      filename:
+                        type: string
+                      functionName:
+                        type: string
+                      lineno:
+                        type: integer
+                      in_app:
+                        type: boolean
+        breadcrumbs:
+          type: array
+          items:
+            type: object
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            email:
+              type: string
+            ip_address:
+              type: string

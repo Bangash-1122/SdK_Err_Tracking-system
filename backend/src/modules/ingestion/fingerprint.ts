@@ -72,11 +72,16 @@ export function normalizeFilename(filename: string): string {
   // Strip query parameters and hash fragments (e.g., bundle.js?v=123)
   normalized = normalized.split('?')[0].split('#')[0];
 
-  // Strip protocol schemes
-  normalized = normalized.replace(/^(?:https?|file|webpack):\/\//i, '');
+  // Strip protocol schemes (e.g. webpack:/// or file:///)
+  normalized = normalized.replace(/^(?:https?|file|webpack):\/\/+/i, '');
 
   // Strip machine-specific user directories
-  normalized = normalized.replace(/^(?:\/home|\/Users|[A-Za-z]:\/Users)\/[^/]+\//i, '~/');
+  normalized = normalized.replace(/^(?:\/?home|\/?Users|[A-Za-z]:\/Users)\/[^/]+\//i, '~/');
+
+  // Strip leading slash if any (unless starts with ~/)
+  if (!normalized.startsWith('~/')) {
+    normalized = normalized.replace(/^\/+/, '');
+  }
 
   // Strip build output hashes (e.g., main.a1b2c3d4.js -> main.js)
   normalized = normalized.replace(/\.[0-9a-fA-F]{8,32}\./g, '.');

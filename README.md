@@ -188,8 +188,25 @@ SDK-ErrorTracking/
         │       ├── realtime.controller.ts# Tenant-scoped Server-Sent Events (SSE) streaming with heartbeat
         │       └── realtime.routes.ts  # GET /api/v1/realtime/issues
         │
-        └── types/                      # Global TypeScript declaration merging
-            └── express.d.ts            # Type augmentations for Express (req.id, req.user, req.tenant, req.session)
+        ├── workers/                    # Background Worker Processors (Files 86 – 89)
+        │   ├── outboxRelay.worker.ts   # Polls outbox (FOR UPDATE SKIP LOCKED) & publishes to Redis/BullMQ
+        │   ├── alertsEvaluation.worker.ts# Evaluates alert thresholds, quiet periods & triggers notifications
+        │   ├── webhookDispatch.worker.ts # SSRF-protected signed outbound HTTP webhooks (HMAC-SHA256)
+        │   ├── emailDelivery.worker.ts # Transactional alert email dispatcher with retry logic
+        │   ├── analyticsRollup.worker.ts# APM telemetry rollups & asynchronous export jobs
+        │   └── retentionCleanup.worker.ts# Auto-resolves inactive issues & prunes expired telemetry
+        │
+        ├── __tests__/                  # Automated Test Suite (Files 92 – 93)
+        │   ├── unit.test.ts            # Fingerprinting, normalization, PII scrubbing, crypto & SSRF tests
+        │   ├── integration.test.ts     # Express server pipeline, Zod schema validation & pagination
+        │   └── security.test.ts        # Tampered signatures, negative security attacks & SSRF defense
+        │
+        ├── types/                      # Global TypeScript declaration merging
+        │   └── express.d.ts            # Type augmentations for Express (req.id, req.user, req.tenant, req.session)
+        │
+        ├── index.ts                    # Application re-export entry point
+        ├── server.ts                   # Primary API Server Entry Point (File 91)
+        └── worker.ts                   # Standalone Background Worker Process Entry Point (File 90)
 ```
 
 ---
@@ -457,34 +474,61 @@ Implemented domain modules adhering strictly to the architecture pattern (**Repo
 
 ---
 
-### ⏳ Upcoming Stages
+### ✅ Stage 6: Background Workers & Server Entry Points (Files 86 – 93)
 
-- **Stage 6: Workers & Entry Points (Files 86 – 93)**: Background workers, outbox processors, schedulers, and runnable process entry points (`server.ts`, `worker.ts`).
+Completed the asynchronous worker subsystem, dual process entry points, OpenAPI 3.1 specification, and comprehensive automated test suite:
+
+1. **Background Workers (Files 86 – 89)**
+   - `workers/outboxRelay.worker.ts`: Polls PostgreSQL `outbox` table using `FOR UPDATE SKIP LOCKED` for lock-free multi-worker scaling, broadcasting real-time events to Redis pub/sub channels and queuing background jobs.
+   - `workers/alertsEvaluation.worker.ts`: Evaluates metric conditions (`new_issue`, `error_count`), enforces 30-minute quiet hours throttling per issue, and fans out alert dispatches.
+   - `workers/webhookDispatch.worker.ts`: Dispatches signed webhooks (`X-ErrorPulse-Signature: sha256=...`) with comprehensive **SSRF protection** blocking loopback, link-local, private VPC (RFC 1918), and cloud metadata IP ranges.
+   - `workers/emailDelivery.worker.ts`: Reliable transactional alert email dispatch with template rendering and retry strategies.
+   - `workers/analyticsRollup.worker.ts`: Performs rolling telemetry cache invalidation (`invalidateByTag`) and processes asynchronous telemetry exports to S3/MinIO.
+   - `workers/retentionCleanup.worker.ts`: Auto-resolves inactive issues based on `autoResolveInactiveDays` and prunes expired telemetry events older than `telemetryRetentionDays`.
+
+2. **Standalone Worker Entry Point (File 90)**
+   - `backend/src/worker.ts`: Bootstraps all 6 background workers and pollers, with graceful `SIGTERM` and `SIGINT` lifecycle handling draining active jobs and closing Redis and PostgreSQL pools cleanly.
+
+3. **API Server Entry Point (File 91)**
+   - `backend/src/server.ts`: Assembles the 12-step middleware pipeline, mounts `express.raw()` for payment webhooks ahead of standard JSON parsers, registers all 11 domain modules under `/api/v1/*`, and implements graceful HTTP connection draining.
+
+4. **OpenAPI 3.1 Specification & Automated Test Suite (Files 92 – 93)**
+   - `openapi.yaml`: Full OpenAPI 3.1.0 schema covering all 40+ endpoints, security schemes (`sessionCookie`, `apiKeyAuth`, `csrfToken`), and request/response contracts.
+   - `backend/src/__tests__/`: Automated test suite executed with Node.js native test runner:
+     - `unit.test.ts`: Stack trace normalization, deterministic fingerprinting, recursive PII scrubbing, cryptographic primitives (Argon2id, AES-256-GCM), and SSRF URL validator.
+     - `integration.test.ts`: Full Express server pipeline initialization, SDK ingestion payload validation, signup/auth schema constraints, and cursor pagination queries.
+     - `security.test.ts`: Negative security tests, tampered webhook signatures, error code mappings, and malicious SSRF attack blocks.
 
 ---
 
 ## 🚀 Setup & Development
 
 ### 1. Prerequisites
-- **Node.js**: v20 or higher
+- **Node.js**: v20 or higher (v24 recommended)
 - **PNPM**: v9 or higher
 - **PostgreSQL**: v15 or higher
 - **Redis**: v7 or higher
 
 ### 2. Installation
 ```bash
-cd backend
 pnpm install
 ```
 
 ### 3. Environment Setup
 ```bash
-cp .env.example .env
-# Edit .env with your local database and redis URLs
+cp backend/.env.example backend/.env
+# Edit backend/.env with your local database and Redis URLs
 ```
 
-### 4. Running the Development Server
+### 4. Running the Applications
 ```bash
-pnpm dev
+# Start API Server (Port 4000)
+pnpm --filter backend dev
+
+# Start Background Worker Process
+pnpm --filter backend worker
+
+# Execute Automated Test Suite
+pnpm --filter backend test
 ```
 
